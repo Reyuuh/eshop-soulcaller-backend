@@ -1,21 +1,28 @@
-const sequelize = require("./sequelize.js");
-const User = require("./UserModel.js");
-const Product = require("./ProductModel.js");
-const Order = require("./OrderModel.js");
-const OrderItem = require("./OrderItemModel.js");
-const Category = require("./CategoryModel.js");
+import sequelize from "./sequelize.js";
 
-// Define associations
-User.hasMany(Order, { foreignKey: "user_id" });
-Order.belongsTo(User, { foreignKey: "user_id" });
+import User from "./UserModel.js";
+import Product from "./ProductModel.js";
+import Order from "./OrderModel.js";
+import OrderItem from "./OrderItemModel.js";
+import Category from "./CategoryModel.js";
 
-Order.hasMany(OrderItem, { foreignKey: "order_id" });
-OrderItem.belongsTo(Order, { foreignKey: "order_id" });
+// User ↔ Orders
+User.hasMany(Order, { foreignKey: "user_id", as: "orders" });
+Order.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
-Product.belongsTo(Category, { foreignKey: "category_id" });
-Category.hasMany(Product, { foreignKey: "category_id" });
+// Orders ↔ OrderItems
+Order.hasMany(OrderItem, { foreignKey: "order_id", as: "items" });
+OrderItem.belongsTo(Order, { foreignKey: "order_id", as: "order" });
 
-module.exports = {
+// Categories ↔ Products
+Category.hasMany(Product, { foreignKey: "category_id", as: "products" });
+Product.belongsTo(Category, { foreignKey: "category_id", as: "category" });
+
+// Products ↔ OrderItems  ✅ IMPORTANT (you were missing this)
+Product.hasMany(OrderItem, { foreignKey: "product_id", as: "orderItems" });
+OrderItem.belongsTo(Product, { foreignKey: "product_id", as: "product" });
+
+export {
   sequelize,
   User,
   Product,

@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import sequelize from "./models/sequelize.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import categoriesRoutes from "./routes/categories.routes.js";
 
 const app = express();
 app.use(cors());
@@ -19,6 +20,8 @@ try {
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
+
+app.use("/categories", categoriesRoutes);
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, "0.0.0.0", () => {

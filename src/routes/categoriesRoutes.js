@@ -1,13 +1,13 @@
 // src/routes/categories.routes.js
 import { Router } from "express";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import asyncHandler from "../utils/asyncHandler.js";
 import {
   listCategories,
   getCategoryById,
   createCategory,
   updateCategory,
   deleteCategory,
-} from "../controllers/categories.controller.js";
+} from "../controller/categoriesController.js";
 
 const router = Router();
 

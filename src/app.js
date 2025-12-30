@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import sequelize from "./models/sequelize.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import categoriesRoutes from "./routes/categories.routes.js";
+import categoriesRoutes from "./routes/categoriesRoutes.js";
 
 const app = express();
 app.use(cors());

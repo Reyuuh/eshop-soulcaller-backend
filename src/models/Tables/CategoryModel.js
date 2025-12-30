@@ -1,5 +1,6 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("./sequelize");
+import { DataTypes } from "sequelize";
+import { asyncHandler} from "../../utils/asyncHandler.js";
+import sequelize from "../sequelize.js";
 
 const Category = sequelize.define("Category", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -7,4 +8,4 @@ const Category = sequelize.define("Category", {
   description: { type: DataTypes.STRING, allowNull: false },
 });
 
-module.exports = Category;
+export default Category;

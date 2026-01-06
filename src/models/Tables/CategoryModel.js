@@ -1,5 +1,4 @@
 import { DataTypes } from "sequelize";
-import { asyncHandler} from "../../utils/asyncHandler.js";
 import sequelize from "../sequelize.js";
 
 const Category = sequelize.define("Category", {

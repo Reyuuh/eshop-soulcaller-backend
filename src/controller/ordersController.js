@@ -33,11 +33,16 @@ export const createOrder = async (req, res, next) => {
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       await t.rollback();
-      return res.status(400).json({ message: "items is required and must be a non-empty array" });
+      return res
+        .status(400)
+        .json({ message: "items is required and must be a non-empty array" });
     }
 
     const order = await Order.create(
-      { user_id: userId ?? null, total: total ?? 0 },
+      {
+        user_id: userId ?? null,
+        total_price: total ?? 0,   // ← important
+      },
       { transaction: t }
     );
 
@@ -45,7 +50,7 @@ export const createOrder = async (req, res, next) => {
       order_id: order.id,
       product_id: it.productId,
       quantity: it.quantity ?? 1,
-      price: it.price ?? 0,
+      unit_price: it.price ?? 0,  // ← important
     }));
 
     await OrderItem.bulkCreate(itemsToCreate, { transaction: t });
@@ -53,7 +58,13 @@ export const createOrder = async (req, res, next) => {
     await t.commit();
 
     const created = await Order.findByPk(order.id, {
-      include: [{ model: OrderItem, as: "items", include: [{ model: Product, as: "product" }] }],
+      include: [
+        {
+          model: OrderItem,
+          as: "items",
+          include: [{ model: Product, as: "product" }],
+        },
+      ],
     });
 
     res.status(201).json(created);

@@ -10,6 +10,7 @@ import productsRoutes from "./routes/productsRoutes.js";
 import ordersRoutes from "./routes/ordersRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import { dbInit } from "./models/dbInit.js";
+import usersRoutes from "./routes/usersRoutes.js";
 
 
 const app = express();
@@ -31,7 +32,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/auth", authRoutes);
-
 app.use("/categories", categoriesRoutes);  // Add this to mount categories routes
 app.use("/products", productsRoutes);  // Add this to mount products routes
 app.use("/orders", ordersRoutes);      // Add this to mount orders routes
@@ -41,8 +41,8 @@ app.use("/orders", ordersRoutes);      // Add this to mount orders routes
 app.use("/admins", requireAuth, requireAdmin, (req, res) => {
   res.status(501).json({ message: "Admins routes not implemented yet" });
 });
-app.use("/users", requireAuth, requireAdmin, (req, res) => {
-  res.status(501).json({ message: "Users routes not implemented yet" });
+app.use("/users", usersRoutes, (req, res) => {
+
 });
 
 app.use(errorHandler);

@@ -25,7 +25,11 @@ export const getUserById = async (req, res) => {
 };
 
 export const createUser = async (req, res) => {
-  const { email, password } = req.body;
+  console.log("📥 Received body:", req.body);
+  const { name, email, password, role } = req.body;
+  if (!name) {
+    return res.status(400).json({ message: "name is required" });
+  }
   if (!email || typeof email !== "string" || !email.trim()) {
     return res.status(400).json({ message: "email is required" });
   }
@@ -35,10 +39,14 @@ export const createUser = async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // Standardvärde är "user" om ingen roll anges, annars använd den skickade rollen
+  const userRole = role && ["user", "admin"].includes(role) ? role : "user";
+
   const created = await User.create({
+    name: name?.trim() || null, 
     email: email.trim(),
     password: passwordHash,
-    role: "user",
+    role: userRole,
   });
   const { password: _pw, ...safe } = created.toJSON();
   res.status(201).json(safe);

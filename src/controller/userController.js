@@ -52,6 +52,7 @@ export const createUser = async (req, res) => {
   res.status(201).json(safe);
 };
 
+
 export const updateUser = async (req, res) => {
   const { id } = req.params;
   const { email, password } = req.body;

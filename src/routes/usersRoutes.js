@@ -7,6 +7,7 @@ import {
   updateUser,
   deleteUser,
 } from "../controller/userController.js"; 
+import { login } from "../controller/authController.js";
 
 
 const router = Router();
@@ -14,7 +15,8 @@ const router = Router();
 router.get("/", asyncHandler(listUsers));
 router.get("/:id", asyncHandler(getUserById));
 router.post("/",asyncHandler(createUser));
-router.put("/:id", asyncHandler(updateUser));
+router.post("/login", asyncHandler(login));
+router.put("/:id",asyncHandler(updateUser));
 router.delete("/:id", asyncHandler(deleteUser));
 
 export default router;

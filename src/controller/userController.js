@@ -1,9 +1,12 @@
-// src/controllers/user.controller.js
+// src/controllers/userController.js
+import bcrypt from "bcrypt";
 import { User } from "../models/index.js";
 
 export const listUsers = async (req, res) => {
   const users = await User.findAll({
-    order: [["name", "ASC"]],
+    where: { role: "user" },
+    attributes: { exclude: ["password"] },
+    order: [["email", "ASC"]],
   });
   res.json(users);
 };
@@ -11,7 +14,9 @@ export const listUsers = async (req, res) => {
 export const getUserById = async (req, res) => {
   const { id } = req.params;
 
-  const user = await User.findByPk(id);
+  const user = await User.findByPk(id , {
+    attributes: { exclude: ["password"] },
+  });
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
@@ -20,7 +25,7 @@ export const getUserById = async (req, res) => {
 };
 
 export const createUser = async (req, res) => {
-  const { email, password, role  } = req.body;
+  const { email, password } = req.body;
   if (!email || typeof email !== "string" || !email.trim()) {
     return res.status(400).json({ message: "email is required" });
   }
@@ -28,13 +33,15 @@ export const createUser = async (req, res) => {
     return res.status(400).json({ message: "password is required" });
   }
 
+  const passwordHash = await bcrypt.hash(password, 10);
+
   const created = await User.create({
     email: email.trim(),
-    password: password,
-    role: role || "user",
+    password: passwordHash,
+    role: "user",
   });
-
-  res.status(201).json(created);
+  const { password: _pw, ...safe } = created.toJSON();
+  res.status(201).json(safe);
 };
 
 export const updateUser = async (req, res) => {
@@ -58,7 +65,8 @@ export const updateUser = async (req, res) => {
     user.password = password;
   }
     await user.save();
-    res.json(user);
+    const { password: _pw, ...safe } = user.toJSON();
+    res.json(safe);
 };
 
 export const deleteUser = async (req, res) => {

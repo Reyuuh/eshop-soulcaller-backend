@@ -1,5 +1,5 @@
 // src/controllers/products.controller.js
-import { Product } from "../models/index.js";
+import { Product, OrderItem, Order } from "../models/index.js";
 
 export const listProducts = async (req, res) => {
   const products = await Product.findAll({
@@ -76,12 +76,41 @@ export const updateProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   const { id } = req.params;
 
-  const product = await Product.findByPk(id);
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
-  }
+  try {
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-  // If products reference this category, MySQL will block delete (RESTRICT) → handled by errorHandler
-  await product.destroy();
-  res.status(204).send();
+    
+    const orderItems = await OrderItem.findAll({
+      where: { product_id: id },
+    });
+
+   
+    const orderIds = [...new Set(orderItems.map((item) => item.order_id))];
+
+    
+    await OrderItem.destroy({
+      where: { product_id: id },
+    });
+
+   
+    if (orderIds.length > 0) {
+      await Order.destroy({
+        where: { id: orderIds },
+      });
+    }
+
+    // 5. Finally delete the product
+    await product.destroy();
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting product and related orders:", error);
+    console.error("Parent error:", error.parent);
+    return res
+      .status(500)
+      .json({ message: "Could not delete product due to server error" });
+  }
 };

@@ -37,13 +37,16 @@ app.use("/products", productsRoutes);  // Add this to mount products routes
 app.use("/orders", ordersRoutes);      // Add this to mount orders routes
 
 
-// Optional placeholders (remove later)
-app.use("/admins", requireAuth, requireAdmin, (req, res) => {
-  res.status(501).json({ message: "Admins routes not implemented yet" });
-});
-app.use("/users", usersRoutes, (req, res) => {
+//Onödig admin route under
+//app.use("/admins", requireAuth, requireAdmin, (req, res) => {
+  //res.status(501).json({ message: "Admins routes not implemented yet" });
+//});
 
-});
+app.use("/users", usersRoutes);
+
+app.use("/categories", requireAuth, requireAdmin, categoriesRoutes);
+app.use("/products", requireAuth, requireAdmin, productsRoutes);
+
 
 app.use(errorHandler);
 

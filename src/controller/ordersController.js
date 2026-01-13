@@ -1,5 +1,8 @@
 // src/controller/orderController.js
 import { sequelize, Order, OrderItem, Product } from "../models/index.js";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2022-11-15" });
 
 export const listOrders = async (req, res, next) => {
   try {
@@ -67,9 +70,59 @@ export const createOrder = async (req, res, next) => {
       ],
     });
 
-    res.status(201).json(created);
+    // Create a Stripe PaymentIntent for the order amount
+    const amount = Math.round((Number(total ?? 0) || 0) * 100); // cents
+    const currency = process.env.STRIPE_CURRENCY || "sek";
+
+    let clientSecret = null;
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency,
+        metadata: { order_id: String(order.id) },
+      });
+      clientSecret = paymentIntent.client_secret;
+    } catch (err) {
+      // If Stripe creation fails, still return the created order but log error
+      console.error("Stripe PaymentIntent create failed:", err.message || err);
+    }
+
+    res.status(201).json({ order: created, clientSecret });
   } catch (err) {
     await t.rollback();
+    next(err);
+  }
+};
+
+export const handleStripeWebhook = async (req, res, next) => {
+  const sig = req.headers["stripe-signature"];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+  let event;
+  try {
+    // req.body is raw buffer because route uses express.raw
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    console.error("Webhook signature verification failed:", err.message || err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object;
+      const orderId = pi.metadata?.order_id;
+      if (orderId) {
+        const order = await Order.findByPk(orderId);
+        if (order) {
+          console.log(`Payment succeeded for order ${orderId}`);
+          // No `status` field on Order model; update as needed if you add one later.
+        }
+      }
+    }
+
+    // acknowledge receipt
+    res.json({ received: true });
+  } catch (err) {
     next(err);
   }
 };

@@ -1,3 +1,4 @@
+// models/index.js
 import sequelize from "./sequelize.js";
 
 import User from "./Tables/UserModel.js";
@@ -6,19 +7,15 @@ import Order from "./Tables/OrderModel.js";
 import OrderItem from "./Tables/OrderItemModel.js";
 import Category from "./Tables/CategoryModel.js";
 
-// User ↔ Orders
 User.hasMany(Order, { foreignKey: "user_id", as: "orders" });
 Order.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
-// Orders ↔ OrderItems
 Order.hasMany(OrderItem, { foreignKey: "order_id", as: "items" });
 OrderItem.belongsTo(Order, { foreignKey: "order_id", as: "order" });
 
-// Categories ↔ Products
 Category.hasMany(Product, { foreignKey: "category_id", as: "products" });
 Product.belongsTo(Category, { foreignKey: "category_id", as: "category" });
 
-// Products ↔ OrderItems
 Product.hasMany(OrderItem, { foreignKey: "product_id", as: "orderItems" });
 OrderItem.belongsTo(Product, { foreignKey: "product_id", as: "product" });
 

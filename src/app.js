@@ -1,8 +1,9 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import Stripe from "stripe"; // ⬅️ ADD THIS
-import sequelize from "./models/sequelize.js";
+import Stripe from "stripe";
+
+import { sequelize, Order, OrderItem } from "./models/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { requireAdmin } from "./middleware/requireAdmin.js";
@@ -14,9 +15,8 @@ import { dbInit } from "./models/dbInit.js";
 import usersRoutes from "./routes/usersRoutes.js";
 
 const app = express();
-
-// ⬅️ INIT STRIPE WITH YOUR SECRET KEY
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 
 app.use(cors());
 app.use(express.json());
@@ -46,18 +46,26 @@ app.use("/products", requireAuth, requireAdmin, productsRoutes);
 
 // 🔥 STRIPE PAYMENT ROUTE USED BY YOUR PaymentForm
 app.post("/payment/process", async (req, res) => {
-  const { paymentMethodId, amount, name, email, address } = req.body;
+  const {
+    paymentMethodId,
+    amount,
+    name,
+    email,
+    address,
+    cartItems,
+    userId,
+  } = req.body;
 
-  if (!paymentMethodId || !amount) {
+  if (!paymentMethodId || !amount || !cartItems || !userId) {
     return res.status(400).json({
       success: false,
-      message: "paymentMethodId and amount are required",
+      message: "paymentMethodId, amount, cartItems and userId are required",
     });
   }
 
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,                  // 1000 = 10.00 kr
+      amount,
       currency: "sek",
       payment_method: paymentMethodId,
       confirmation_method: "automatic",
@@ -72,18 +80,55 @@ app.post("/payment/process", async (req, res) => {
       },
     });
 
-    if (paymentIntent.status === "succeeded") {
-      return res.json({
-        success: true,
-        message: "Payment successful",
-        paymentIntentId: paymentIntent.id,
+    if (paymentIntent.status !== "succeeded") {
+      return res.status(400).json({
+        success: false,
+        message: `Unexpected payment status: ${paymentIntent.status}`,
       });
     }
 
-    return res.status(400).json({
-      success: false,
-      message: `Unexpected payment status: ${paymentIntent.status}`,
-    });
+    const totalPrice = amount / 100;
+
+    const t = await sequelize.transaction();
+
+    try {
+      const order = await Order.create(
+        {
+          user_id: userId,
+          total_price: totalPrice,
+          order_date: new Date(),
+        },
+        { transaction: t }
+      );
+
+      for (const item of cartItems) {
+        await OrderItem.create(
+          {
+            order_id: order.id,
+            product_id: item.productId,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+          },
+          { transaction: t }
+        );
+      }
+
+      await t.commit();
+
+      return res.json({
+        success: true,
+        message: "Payment successful & order saved",
+        paymentIntentId: paymentIntent.id,
+        orderId: order.id,
+      });
+    } catch (dbErr) {
+      await t.rollback();
+      console.error("DB error while saving order:", dbErr);
+      return res.status(500).json({
+        success: false,
+        message: "Payment succeeded but order saving failed",
+      });
+    }
   } catch (err) {
     console.error("Stripe error:", err);
     return res.status(400).json({
@@ -92,6 +137,7 @@ app.post("/payment/process", async (req, res) => {
     });
   }
 });
+
 
 app.use(errorHandler);
 

@@ -6,17 +6,19 @@ import {
   createUser,
   updateUser,
   deleteUser,
-} from "../controller/userController.js"; 
+} from "../controller/userController.js";
 import { login } from "../controller/authController.js";
-
+import { requireAuth } from "../middleware/requireAuth.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 
 const router = Router();
 
-router.get("/", asyncHandler(listUsers));
-router.get("/:id", asyncHandler(getUserById));
-router.post("/",asyncHandler(createUser));
+router.post("/", asyncHandler(createUser));
 router.post("/login", asyncHandler(login));
-router.put("/:id",asyncHandler(updateUser));
-router.delete("/:id", asyncHandler(deleteUser));
+
+router.get("/", requireAuth, requireAdmin, asyncHandler(listUsers));
+router.get("/:id", requireAuth, asyncHandler(getUserById));
+router.put("/:id", requireAuth, asyncHandler(updateUser));
+router.delete("/:id", requireAuth, requireAdmin, asyncHandler(deleteUser));
 
 export default router;

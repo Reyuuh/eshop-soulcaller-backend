@@ -138,15 +138,56 @@ app.post("/create-checkout-session", async (req, res) => {
       return res.status(400).json({ message: "Cart is empty." });
     }
 
-    // ✅ TEMP: Create a placeholder orderId.
-    // Recommended: create a pending Order in DB here and use its real ID.
-    // const order = await Order.create({ user_id: userId, total_price: 0, order_date: new Date() });
-    // const orderId = order.id;
-    const orderId = "123";
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required." });
+    }
 
+    // 1) Calculate total (OBS: i production: hämta pris från DB med item.id)
+    const totalPrice = items.reduce((sum, item) => {
+      const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+      return sum + Number(price) * Number(item.quantity || 1);
+    }, 0);
+
+    // 2) Save Order + OrderItems in DB first
+    const t = await sequelize.transaction();
+    let order;
+
+    try {
+      order = await Order.create(
+        {
+          user_id: userId,
+          total_price: totalPrice,
+          order_date: new Date(),
+          // om du har en status kolumn, kan du sätta: status: "pending"
+        },
+        { transaction: t }
+      );
+
+      for (const item of items) {
+        const unitPrice =
+          typeof item.price === "string" ? parseFloat(item.price) : item.price;
+
+        await OrderItem.create(
+          {
+            order_id: order.id,
+            product_id: item.id, // 👈 från frontend items
+            quantity: Number(item.quantity) || 1,
+            unit_price: Number(unitPrice),
+          },
+          { transaction: t }
+        );
+      }
+
+      await t.commit();
+    } catch (dbErr) {
+      await t.rollback();
+      console.error("DB error while saving order:", dbErr);
+      return res.status(500).json({ message: "Failed to save order in DB." });
+    }
+
+    // 3) Build Stripe line items
     const lineItems = items.map((item) => {
-      const price =
-        typeof item.price === "string" ? parseFloat(item.price) : item.price;
+      const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
 
       return {
         quantity: Number(item.quantity) || 1,
@@ -158,30 +199,32 @@ app.post("/create-checkout-session", async (req, res) => {
       };
     });
 
+    // 4) Create Stripe session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
 
-      // ✅ Works with your Stripe API version:
       payment_method_types: ["card"],
-
       billing_address_collection: "required",
 
       success_url: `${CLIENT_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${CLIENT_URL}/payment`,
 
       metadata: {
-        orderId: String(orderId),
-        userId: userId ? String(userId) : "",
+        orderId: String(order.id),
+        userId: String(userId),
       },
     });
 
-    return res.json({ url: session.url });
+    return res.json({ url: session.url, orderId: order.id });
   } catch (err) {
     console.error("create-checkout-session error:", err);
-    return res.status(500).json({ message: err.message || "Failed to create checkout session." });
+    return res.status(500).json({
+      message: err.message || "Failed to create checkout session.",
+    });
   }
 });
+
 
 // 🔥 STRIPE PAYMENT ROUTE USED BY YOUR OLD PaymentForm (unchanged)
 app.post("/payment/process", async (req, res) => {
